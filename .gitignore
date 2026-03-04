@@ -8,4 +8,16 @@
 # dependency directories
 node_modules/
 vendor/
+
+# Terraform
+*.tfstate
+*.tfstate.*
 .terraform/
+.terraform.lock.hcl
+*.tfvars
+*.tfvars.json
+.terraformrc
+terraform.rc
+
+# Lambda build artifact
+lambda/ssm_backup_lambda.zip
