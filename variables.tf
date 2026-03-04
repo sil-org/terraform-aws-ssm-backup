@@ -1,20 +1,15 @@
 variable "app_name" {
-  description = "Application name used in resource names and tags"
+  description = "Short app name used in the name of managed resources"
   type        = string
 }
 
 variable "app_env" {
-  description = "Environment name (e.g. stg, prod)"
+  description = "Environment name used in the name of managed resources, e.g. prod, stg"
   type        = string
 }
 
 variable "aws_region" {
   description = "AWS region where resources are created"
-  type        = string
-}
-
-variable "aws_account_id" {
-  description = "AWS account ID, used in IAM and S3 bucket policies"
   type        = string
 }
 

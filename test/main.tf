@@ -4,7 +4,6 @@ module "minimal" {
   app_name       = "myapp"
   app_env        = "stg"
   aws_region     = "us-east-1"
-  aws_account_id = "123456789012"
   parameter_path = "/myapp/stg"
 }
 
@@ -14,7 +13,6 @@ module "full" {
   app_name       = "myapp"
   app_env        = "prod"
   aws_region     = "us-east-1"
-  aws_account_id = "123456789012"
   parameter_path = "/myapp/prod"
   schedule       = "0 2 * * ? *"
   retention_days = 180

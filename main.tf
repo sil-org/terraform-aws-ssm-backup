@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 resource "random_id" "this" {
   byte_length = 4
 }
@@ -55,7 +57,7 @@ resource "aws_s3_bucket_policy" "logs" {
             ]
           }
           StringEquals = {
-            "aws:SourceAccount" = var.aws_account_id
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
           }
         }
       },
@@ -208,13 +210,13 @@ resource "aws_iam_role_policy" "this" {
           "ssm:GetParametersByPath",
           "ssm:GetParameters",
         ]
-        Resource = "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter${var.parameter_path}/*"
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.parameter_path}/*"
       },
       {
         # Needed to decrypt SecureString parameters (default aws/ssm key or CMK)
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:DescribeKey"]
-        Resource = "arn:aws:kms:${var.aws_region}:${var.aws_account_id}:key/*"
+        Resource = "arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:key/*"
       },
       {
         Effect   = "Allow"
@@ -232,7 +234,7 @@ resource "aws_iam_role_policy" "this" {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ]
-        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/ssm-backup-${var.app_name}-${var.app_env}:*"
+        Resource = "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/ssm-backup-${var.app_name}-${var.app_env}:*"
       },
     ]
   })
@@ -273,7 +275,7 @@ resource "aws_lambda_function" "this" {
     variables = {
       SSM_PATH   = var.parameter_path
       S3_BUCKET  = aws_s3_bucket.this.bucket
-      ACCOUNT_ID = var.aws_account_id
+      ACCOUNT_ID = data.aws_caller_identity.current.account_id
       KMS_KEY_ID = aws_kms_key.this.arn
     }
   }
