@@ -10,29 +10,27 @@ on:
     branches: ["**"]
 
 jobs:
-  terraform:
-    name: 'Terraform'
+  test:
+    uses: sil-org/workflows/.github/workflows/terraform.yml@main
+    with:
+      terraform-version: '~> 1.5'
+      test-dir: test
+
+  tftest:
+    name: 'Terraform Test'
     runs-on: ubuntu-latest
 
     steps:
-    # Checkout the repository to the GitHub Actions runner
     - name: Checkout
       uses: actions/checkout@v4
 
-    # Install the latest version of Terraform CLI
+    # terraform test requires >= 1.7
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
-        terraform_version: "<1.6.0" # only use open source version of Terraform
+        terraform_version: "1.7.5"
 
-    # Checks that all Terraform configuration files adhere to a canonical format
-    - name: Terraform Format
-      run: terraform fmt -check -diff -recursive
-
-    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
-    - name: Terraform Init
-      run: terraform -chdir=test init
-
-    # Validate the files, referring only to the configuration and not accessing any remote services
-    - name: Terraform Validate
-      run: terraform -chdir=test validate
+    - name: Terraform Test
+      run: |
+        terraform -chdir=test init
+        terraform -chdir=test test -verbose
