@@ -33,9 +33,9 @@ data "aws_iam_policy_document" "kms_key" {
 
   # Deny key deletion scheduling to everyone except explicitly listed admins
   statement {
-    sid     = "DenyScheduleKeyDeletionToNonAdmins"
-    effect  = "Deny"
-    actions = ["kms:ScheduleKeyDeletion"]
+    sid       = "DenyScheduleKeyDeletionToNonAdmins"
+    effect    = "Deny"
+    actions   = ["kms:ScheduleKeyDeletion"]
     resources = ["*"]
     principals {
       type        = "AWS"
