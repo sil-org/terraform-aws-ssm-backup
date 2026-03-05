@@ -30,7 +30,7 @@ def handler(event: dict[str, Any], _context: object) -> dict[str, Any]:
 
     logger.info("Fetched %d parameters from SSM", len(params))
 
-    key = f"ssm-backup{path}.json"
+    key = f"ssm-backup/{path.strip('/').replace('/', '-')}.json"
 
     s3.put_object(
         Bucket=bucket,
