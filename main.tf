@@ -11,6 +11,45 @@ resource "aws_kms_key" "this" {
   description             = "Encrypts SSM parameter backups for ${var.app_name}-${var.app_env}"
   deletion_window_in_days = 7
   enable_key_rotation     = true
+  policy                  = data.aws_iam_policy_document.kms_key.json
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+data "aws_iam_policy_document" "kms_key" {
+  # Required: give the account root full access so the key remains manageable via IAM
+  statement {
+    sid       = "AllowRootFullAccess"
+    effect    = "Allow"
+    actions   = ["kms:*"]
+    resources = ["*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+
+  # Deny key deletion scheduling to everyone except explicitly listed admins
+  statement {
+    sid     = "DenyScheduleKeyDeletionToNonAdmins"
+    effect  = "Deny"
+    actions = ["kms:ScheduleKeyDeletion"]
+    resources = ["*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "ArnNotLike"
+      variable = "aws:PrincipalArn"
+      values = concat(
+        ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"],
+        var.kms_admin_arns,
+      )
+    }
+  }
 }
 
 resource "aws_kms_alias" "this" {
