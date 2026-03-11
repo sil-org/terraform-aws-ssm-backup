@@ -35,3 +35,9 @@ variable "enabled" {
   type        = bool
   default     = true
 }
+
+variable "kms_admin_arns" {
+  description = "IAM principal ARNs (users, roles) permitted to schedule deletion of the KMS key. The account root is always allowed."
+  type        = list(string)
+  default     = []
+}

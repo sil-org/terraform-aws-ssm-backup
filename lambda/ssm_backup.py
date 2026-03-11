@@ -2,7 +2,6 @@ import boto3
 import json
 import logging
 import os
-from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger()
@@ -31,8 +30,7 @@ def handler(event: dict[str, Any], _context: object) -> dict[str, Any]:
 
     logger.info("Fetched %d parameters from SSM", len(params))
 
-    now = datetime.now(timezone.utc)
-    key = f"ssm-backup/{now.strftime('%Y-%m-%d/%H%M%S')}.json"
+    key = f"ssm-backup/{path.strip('/').replace('/', '-')}.json"
 
     s3.put_object(
         Bucket=bucket,
