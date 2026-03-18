@@ -249,7 +249,7 @@ resource "aws_iam_role_policy" "this" {
           "ssm:GetParametersByPath",
           "ssm:GetParameters",
         ]
-        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.parameter_path}/*"
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.parameter_path}*"
       },
       {
         # Needed to decrypt SecureString parameters (default aws/ssm key or CMK)
