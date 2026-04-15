@@ -220,7 +220,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
  * Create IAM role and policy for SSM backup Lambda
  */
 resource "aws_iam_role" "this" {
-  name = "ssm-backup-${var.app_name}-${var.app_env}"
+  name = "ssm-backup-${var.app_name}-${var.app_env}-${random_id.this.hex}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -237,7 +237,7 @@ resource "aws_iam_role" "this" {
 }
 
 resource "aws_iam_role_policy" "this" {
-  name = "ssm-backup-${var.app_name}-${var.app_env}"
+  name = "ssm-backup-${var.app_name}-${var.app_env}-${random_id.this.hex}"
   role = aws_iam_role.this.id
 
   policy = jsonencode({
