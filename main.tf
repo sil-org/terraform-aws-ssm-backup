@@ -303,7 +303,7 @@ data "archive_file" "this" {
 resource "aws_lambda_function" "this" {
   function_name    = "ssm-backup-${var.app_name}-${var.app_env}"
   role             = aws_iam_role.this.arn
-  runtime          = "python3.10"
+  runtime          = "python3.12"
   handler          = "ssm_backup.handler"
   filename         = data.archive_file.this.output_path
   source_code_hash = data.archive_file.this.output_base64sha256
