@@ -10,7 +10,7 @@ This module is used to create scheduled backups of AWS SSM Parameter Store param
 - S3 bucket policies, logging, lifecycle configurations
 - IAM Role and Policy (Lambda execution)
 - CloudWatch Log Group
-- Backup and restore Lambda functions (Python 3.12)
+- Backup and restore Lambda functions (Python 3.x, see `main.tf` for the exact runtime)
 - EventBridge rule and target
 
 This module is published in [Terraform Registry](https://registry.terraform.io/modules/sil-org/ssm-backup/aws/latest).

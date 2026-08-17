@@ -2,6 +2,7 @@ data "aws_caller_identity" "current" {}
 
 locals {
   aws_account_id = data.aws_caller_identity.current.account_id
+  python_runtime = "python3.12"
 }
 
 resource "random_id" "this" {
@@ -307,7 +308,7 @@ data "archive_file" "this" {
 resource "aws_lambda_function" "this" {
   function_name    = "ssm-backup-${var.app_name}-${var.app_env}"
   role             = aws_iam_role.this.arn
-  runtime          = "python3.12"
+  runtime          = local.python_runtime
   handler          = "ssm_backup.handler"
   filename         = data.archive_file.this.output_path
   source_code_hash = data.archive_file.this.output_base64sha256
@@ -444,7 +445,7 @@ resource "aws_cloudwatch_log_group" "restore" {
 resource "aws_lambda_function" "restore" {
   function_name    = "ssm-restore-${var.app_name}-${var.app_env}"
   role             = aws_iam_role.restore.arn
-  runtime          = "python3.12"
+  runtime          = local.python_runtime
   handler          = "ssm_restore.handler"
   filename         = data.archive_file.restore.output_path
   source_code_hash = data.archive_file.restore.output_base64sha256
