@@ -21,7 +21,11 @@ def handler(event: dict[str, Any], _context: object) -> dict[str, Any]:
 
     key = f"ssm-backup/{path.strip('/').replace('/', '-')}.json"
 
-    get_kwargs = {"Bucket": bucket, "Key": key}
+    get_kwargs = {
+        "Bucket": bucket,
+        "Key": key,
+        "ExpectedBucketOwner": os.environ["ACCOUNT_ID"],
+    }
     if version_id:
         get_kwargs["VersionId"] = version_id
 

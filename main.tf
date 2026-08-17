@@ -261,6 +261,11 @@ resource "aws_iam_role_policy" "this" {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:DescribeKey"]
         Resource = "arn:aws:kms:${var.aws_region}:${local.aws_account_id}:key/*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
       },
       {
         Effect   = "Allow"
@@ -392,7 +397,7 @@ resource "aws_iam_role_policy" "restore" {
       {
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:GetObjectVersion"]
-        Resource = "${aws_s3_bucket.this.arn}/*"
+        Resource = "${aws_s3_bucket.this.arn}/ssm-backup/*"
       },
       {
         # Needed to decrypt the SSE-KMS-encrypted backup object in S3
@@ -402,11 +407,7 @@ resource "aws_iam_role_policy" "restore" {
       },
       {
         Effect = "Allow"
-        Action = [
-          "ssm:PutParameter",
-          "ssm:GetParametersByPath",
-          "ssm:GetParameters",
-        ]
+        Action = ["ssm:PutParameter"]
         Resource = [
           "arn:aws:ssm:${var.aws_region}:${local.aws_account_id}:parameter${var.parameter_path}",
           "arn:aws:ssm:${var.aws_region}:${local.aws_account_id}:parameter${var.parameter_path}/*",
@@ -418,6 +419,11 @@ resource "aws_iam_role_policy" "restore" {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:DescribeKey", "kms:Encrypt", "kms:GenerateDataKey"]
         Resource = "arn:aws:kms:${var.aws_region}:${local.aws_account_id}:key/*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
       },
       {
         Effect = "Allow"
