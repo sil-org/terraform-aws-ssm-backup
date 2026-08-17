@@ -19,6 +19,16 @@ module "full" {
   enabled        = true
 }
 
+module "no_restore" {
+  source = "../"
+
+  app_name       = "myapp"
+  app_env        = "test"
+  aws_region     = "us-east-1"
+  parameter_path = "/myapp/test"
+  enable_restore = false
+}
+
 provider "aws" {
   region = "us-east-1"
 }
