@@ -404,12 +404,16 @@ resource "aws_iam_role_policy" "restore" {
           "ssm:GetParametersByPath",
           "ssm:GetParameters",
         ]
-        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.parameter_path}*"
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.parameter_path}",
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.parameter_path}/*",
+        ]
       },
       {
-        # Needed to encrypt/decrypt SecureString parameters (default aws/ssm key or CMK)
+        # Needed to encrypt/decrypt SecureString parameters (default aws/ssm key or CMK).
+        # kms:Encrypt is used for standard-tier SecureString; kms:GenerateDataKey for advanced-tier.
         Effect   = "Allow"
-        Action   = ["kms:Decrypt", "kms:DescribeKey", "kms:GenerateDataKey"]
+        Action   = ["kms:Decrypt", "kms:DescribeKey", "kms:Encrypt", "kms:GenerateDataKey"]
         Resource = "arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:key/*"
       },
       {

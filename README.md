@@ -32,7 +32,7 @@ module "ssm_backup" {
 
 ## Restore
 
-A restore Lambda (`ssm-restore-<app_name>-<app_env>`) is created alongside the backup Lambda. It is **invoked manually** — there is no schedule for it — and reads the same backup file the backup Lambda writes.
+A restore Lambda (`ssm-restore-<app_name>-<app_env>`) is created by default alongside the backup Lambda. It is **invoked manually** — there is no schedule for it — and reads the same backup file the backup Lambda writes.
 
 ```sh
 aws lambda invoke \
