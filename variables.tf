@@ -42,8 +42,3 @@ variable "kms_admin_arns" {
   default     = []
 }
 
-variable "enable_restore" {
-  description = "Whether to create the SSM parameter restore Lambda and its IAM role"
-  type        = bool
-  default     = true
-}
