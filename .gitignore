@@ -21,4 +21,4 @@ terraform.rc
 
 # Lambda build artifact
 lambda/ssm_backup_lambda.zip
-lambda/__pycache__/*
+lambda/__pycache__/
