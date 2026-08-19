@@ -1,5 +1,10 @@
 data "aws_caller_identity" "current" {}
 
+locals {
+  aws_account_id = data.aws_caller_identity.current.account_id
+  python_runtime = "python3.12"
+}
+
 resource "random_id" "this" {
   byte_length = 4
 }
@@ -27,7 +32,7 @@ data "aws_iam_policy_document" "kms_key" {
     resources = ["*"]
     principals {
       type        = "AWS"
-      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+      identifiers = ["arn:aws:iam::${local.aws_account_id}:root"]
     }
   }
 
@@ -45,7 +50,7 @@ data "aws_iam_policy_document" "kms_key" {
       test     = "ArnNotLike"
       variable = "aws:PrincipalArn"
       values = concat(
-        ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"],
+        ["arn:aws:iam::${local.aws_account_id}:root"],
         var.kms_admin_arns,
       )
     }
@@ -96,7 +101,7 @@ resource "aws_s3_bucket_policy" "logs" {
             ]
           }
           StringEquals = {
-            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+            "aws:SourceAccount" = local.aws_account_id
           }
         }
       },
@@ -249,13 +254,18 @@ resource "aws_iam_role_policy" "this" {
           "ssm:GetParametersByPath",
           "ssm:GetParameters",
         ]
-        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.parameter_path}*"
+        Resource = "arn:aws:ssm:${var.aws_region}:${local.aws_account_id}:parameter${var.parameter_path}*"
       },
       {
         # Needed to decrypt SecureString parameters (default aws/ssm key or CMK)
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:DescribeKey"]
-        Resource = "arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:key/*"
+        Resource = "arn:aws:kms:${var.aws_region}:${local.aws_account_id}:key/*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
       },
       {
         Effect   = "Allow"
@@ -273,7 +283,7 @@ resource "aws_iam_role_policy" "this" {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ]
-        Resource = "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/ssm-backup-${var.app_name}-${var.app_env}:*"
+        Resource = "arn:aws:logs:${var.aws_region}:${local.aws_account_id}:log-group:${aws_cloudwatch_log_group.this.name}:*"
       },
     ]
   })
@@ -303,7 +313,7 @@ data "archive_file" "this" {
 resource "aws_lambda_function" "this" {
   function_name    = "ssm-backup-${var.app_name}-${var.app_env}"
   role             = aws_iam_role.this.arn
-  runtime          = "python3.12"
+  runtime          = local.python_runtime
   handler          = "ssm_backup.handler"
   filename         = data.archive_file.this.output_path
   source_code_hash = data.archive_file.this.output_base64sha256
@@ -314,7 +324,7 @@ resource "aws_lambda_function" "this" {
     variables = {
       SSM_PATH   = var.parameter_path
       S3_BUCKET  = aws_s3_bucket.this.bucket
-      ACCOUNT_ID = data.aws_caller_identity.current.account_id
+      ACCOUNT_ID = local.aws_account_id
       KMS_KEY_ID = aws_kms_key.this.arn
     }
   }
@@ -345,4 +355,115 @@ resource "aws_cloudwatch_event_target" "this" {
   target_id = "run-ssm-backup-${var.app_name}-${var.app_env}"
   rule      = aws_cloudwatch_event_rule.this.name
   arn       = aws_lambda_function.this.arn
+}
+
+/*
+ * Package Lambda function code for SSM parameter restore
+ */
+data "archive_file" "restore" {
+  type             = "zip"
+  source_file      = "${path.module}/lambda/ssm_restore.py"
+  output_path      = "${path.module}/lambda/ssm_restore_lambda.zip"
+  output_file_mode = "0666"
+}
+
+/*
+ * Create IAM role and policy for SSM restore Lambda
+ */
+resource "aws_iam_role" "restore" {
+  name = "ssm-restore-${var.app_name}-${var.app_env}-${random_id.this.hex}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "restore" {
+  name = "ssm-restore-${var.app_name}-${var.app_env}-${random_id.this.hex}"
+  role = aws_iam_role.restore.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:GetObjectVersion"]
+        Resource = "${aws_s3_bucket.this.arn}/ssm-backup/*"
+      },
+      {
+        # Needed to decrypt the SSE-KMS-encrypted backup object in S3
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = aws_kms_key.this.arn
+      },
+      {
+        Effect = "Allow"
+        Action = ["ssm:PutParameter"]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:${local.aws_account_id}:parameter${var.parameter_path}",
+          "arn:aws:ssm:${var.aws_region}:${local.aws_account_id}:parameter${var.parameter_path}/*",
+        ]
+      },
+      {
+        # Needed to encrypt/decrypt SecureString parameters (default aws/ssm key or CMK).
+        # kms:Encrypt is used for standard-tier SecureString; kms:GenerateDataKey for advanced-tier.
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey", "kms:Encrypt", "kms:GenerateDataKey"]
+        Resource = "arn:aws:kms:${var.aws_region}:${local.aws_account_id}:key/*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ]
+        Resource = "arn:aws:logs:${var.aws_region}:${local.aws_account_id}:log-group:${aws_cloudwatch_log_group.restore.name}:*"
+      },
+    ]
+  })
+}
+
+/*
+ * Create CloudWatch log group for SSM restore Lambda
+ */
+resource "aws_cloudwatch_log_group" "restore" {
+  name              = "/aws/lambda/ssm-restore-${var.app_name}-${var.app_env}"
+  retention_in_days = 60
+}
+
+/*
+ * Create Lambda function for SSM parameter restore (invoked manually, not scheduled)
+ */
+resource "aws_lambda_function" "restore" {
+  function_name    = "ssm-restore-${var.app_name}-${var.app_env}"
+  role             = aws_iam_role.restore.arn
+  runtime          = local.python_runtime
+  handler          = "ssm_restore.handler"
+  filename         = data.archive_file.restore.output_path
+  source_code_hash = data.archive_file.restore.output_base64sha256
+  timeout          = 300
+  depends_on       = [aws_cloudwatch_log_group.restore]
+
+  environment {
+    variables = {
+      SSM_PATH   = var.parameter_path
+      S3_BUCKET  = aws_s3_bucket.this.bucket
+      ACCOUNT_ID = local.aws_account_id
+      KMS_KEY_ID = aws_kms_key.this.arn
+    }
+  }
 }

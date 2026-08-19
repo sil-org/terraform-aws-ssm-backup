@@ -1,6 +1,6 @@
 # Terraform Module for AWS SSM Parameter Store Backup
 
-This module is used to create scheduled backups of AWS SSM Parameter Store parameters to S3 using a Lambda function and EventBridge.
+This module is used to create scheduled backups of AWS SSM Parameter Store parameters to S3 using a Lambda function and EventBridge. It also provisions a manually-invoked Lambda for restoring parameters from a backup.
 
 ## Resources Managed
 
@@ -10,7 +10,7 @@ This module is used to create scheduled backups of AWS SSM Parameter Store param
 - S3 bucket policies, logging, lifecycle configurations
 - IAM Role and Policy (Lambda execution)
 - CloudWatch Log Group
-- Lambda function (Python 3.10)
+- Backup and restore Lambda functions (Python 3.x, see `main.tf` for the exact runtime)
 - EventBridge rule and target
 
 This module is published in [Terraform Registry](https://registry.terraform.io/modules/sil-org/ssm-backup/aws/latest).
@@ -28,3 +28,17 @@ module "ssm_backup" {
   parameter_path = "/${var.app_name}/${var.app_env}"
 }
 ```
+
+## Restore
+
+A restore Lambda (`ssm-restore-<app_name>-<app_env>`) is created alongside the backup Lambda. It's invoked manually and reads the same backup file the backup Lambda writes.
+
+```sh
+aws lambda invoke \
+  --function-name ssm-restore-<app_name>-<app_env> \
+  --payload '{"dry_run": false}' \
+  --cli-binary-format raw-in-base64-out \
+  response.json
+```
+
+Optional payload fields: `dry_run` (default `true`, previews without writing), `version_id` (restore from a specific S3 backup version), `parameters` (restrict to specific parameter names).
